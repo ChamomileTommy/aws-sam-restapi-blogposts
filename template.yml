@@ -1,0 +1,116 @@
+# This is the SAM template that represents the architecture of your serverless application
+# https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-template-basics.html
+
+# The AWSTemplateFormatVersion identifies the capabilities of the template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/format-version-structure.html
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  The services supporting REST API starter applications
+
+# Transform section specifies one or more macros that AWS CloudFormation uses to process your template
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/transform-section-structure.html
+Transform:
+  - AWS::Serverless-2016-10-31
+
+# Resources declares the AWS resources that you want to include in the stack
+# https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/resources-section-structure.html
+Resources:
+  # DynamoDB Setup
+  #
+  # Creates a set of tables for use by the application.
+  UserAccountTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "AWS_USER_ACCOUNT"
+      BillingMode: "PAY_PER_REQUEST"
+      AttributeDefinitions:
+        - AttributeName: "username"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "username"
+          KeyType: "HASH"
+
+  BlogPostTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: "BLOG_POST"
+      BillingMode: "PAY_PER_REQUEST"
+      AttributeDefinitions:
+        - AttributeName: "postId"
+          AttributeType: "S"
+        - AttributeName: "slug"
+          AttributeType: "S"
+        - AttributeName: "createDate"
+          AttributeType: "N"
+      KeySchema:
+        - AttributeName: "postId"
+          KeyType: "HASH"
+      GlobalSecondaryIndexes:
+        - IndexName: "PostSlugIndex"
+          KeySchema:
+            - AttributeName: "slug"
+              KeyType: "HASH"
+            - AttributeName: "createDate"
+              KeyType: "RANGE"
+          Projection:
+            ProjectionType: "ALL"
+
+  # Lambda Function Setup
+  #
+  # Lambda functions and their associated API Gateway are configured here.
+  ApiGatewayApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: V1
+      OpenApiVersion: "2.0"
+      Description: API supporting the application
+      Cors:
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowMethods: "'DELETE, GET, HEAD, OPTIONS, PATCH, POST, PUT'"
+        AllowOrigin: "'*'"
+
+  BlogPostsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: blogPostsFunction
+      CodeUri: blogposts/
+      Handler: index.lambdaHandler
+      Runtime: nodejs16.x
+      Architectures:
+        - x86_64
+      MemorySize: 128
+      Timeout: 10
+      Description: CRUD service for blog posts.
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref BlogPostTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UserAccountTable
+      Events:
+        RootApi:
+          Type: Api
+          Properties:
+            Path: /blogposts
+            Method: ANY
+            RestApiId: !Ref ApiGatewayApi
+        WildcardApi:
+          Type: Api
+          Properties:
+            Path: /blogposts/{proxy+}
+            Method: ANY
+            RestApiId: !Ref ApiGatewayApi
+    Metadata: # Manage esbuild properties
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: "es2020"
+        Sourcemap: true
+        EntryPoints:
+          - index.ts
+        External:
+          - "aws-sdk"
+
+Outputs:
+  WebEndpoint:
+    Description: "Service endpoint URL for your App configuration"
+    Value: !Sub "https://${ApiGatewayApi}.execute-api.${AWS::Region}.amazonaws.com/V1"
