@@ -1,6 +1,6 @@
 # AWS SAM REST API
 
-How to Build a Serverless REST API with AWS-SAM Node.js, TypeScript, and AWS DynamoDB
+How to Build a Serverless REST API with AWS-SAM,Node.js, TypeScript, and AWS DynamoDB
 
 ![My Image](./picture/architecture.png)
 
@@ -31,7 +31,7 @@ Install dependencies
   npm install
 ```
 
-Back to folder AWS-SAM-RESTAPI-BLOGPOSTS
+Back to folder aws-sam-restapi-blogposts
 
 ```bash
   cd ..
